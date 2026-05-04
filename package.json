@@ -1,0 +1,13 @@
+{
+  "name": "match3",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22" },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "scripts": {
+    "dev": "pnpm --filter @match3/web dev",
+    "build": "pnpm --filter @match3/web build",
+    "preview": "pnpm --filter @match3/web preview",
+    "typecheck": "pnpm --filter @match3/web exec tsc -b"
+  }
+}
