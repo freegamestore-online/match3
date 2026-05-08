@@ -56,6 +56,15 @@ export default function App() {
             { label: "Best", value: bestScore },
           ]}
           actions={<GameAuth />}
+          rules={
+            <div>
+              <h3 style={{ fontWeight: 700 }}>Match 3</h3>
+              <h4 style={{ fontWeight: 600 }}>Rules</h4>
+              <ul><li>Swap adjacent gems to make 3 or more in a row</li><li>Cascading matches create combos for bonus points</li><li>60-second timed mode — score as high as you can</li></ul>
+              <h4 style={{ fontWeight: 600 }}>Controls</h4>
+              <ul><li>Tap or drag to swap adjacent gems</li></ul>
+            </div>
+          }
         />
       }
     >
