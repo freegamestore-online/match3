@@ -32,6 +32,7 @@ type Board = (Cell | null)[][];
 interface GameProps {
   onScore: (score: number) => void;
   onGameOver: () => void;
+  paused?: boolean;
 }
 
 let nextId = 1;
@@ -284,7 +285,7 @@ function GemShape({ type }: { type: GemType }) {
   }
 }
 
-export function Game({ onScore, onGameOver }: GameProps) {
+export function Game({ onScore, onGameOver, paused }: GameProps) {
   const [board, setBoard] = useState<Board>(() => createBoard());
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [animating, setAnimating] = useState(false);
@@ -292,14 +293,17 @@ export function Game({ onScore, onGameOver }: GameProps) {
   const scoreAccum = useRef(0);
   const onScoreRef = useRef(onScore);
   const onGameOverRef = useRef(onGameOver);
+  const pausedRef = useRef(paused);
   onScoreRef.current = onScore;
   onGameOverRef.current = onGameOver;
+  pausedRef.current = paused;
 
   const dragStartRef = useRef<{ row: number; col: number; x: number; y: number } | null>(null);
 
   // Timer
   useEffect(() => {
     const interval = setInterval(() => {
+      if (pausedRef.current) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
