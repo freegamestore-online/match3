@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useGameSounds } from "@freegamestore/games";
 import type { GemType } from "../types";
 
 const ROWS = 8;
@@ -286,6 +287,7 @@ function GemShape({ type }: { type: GemType }) {
 }
 
 export function Game({ onScore, onGameOver, paused }: GameProps) {
+  const sounds = useGameSounds();
   const [board, setBoard] = useState<Board>(() => createBoard());
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [animating, setAnimating] = useState(false);
@@ -307,6 +309,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
+          sounds.playGameOver();
           onGameOverRef.current();
           return 0;
         }
@@ -328,6 +331,11 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
       if (positions.size === 0) break;
 
       cascadeLevel++;
+      if (cascadeLevel === 1) {
+        sounds.playScore();
+      } else {
+        sounds.playClear();
+      }
       const multiplier = cascadeLevel;
       const pts = computeMatchScore(current, positions);
       totalPoints += pts * multiplier;
@@ -368,6 +376,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
       if (animating) return;
       if (!areAdjacent(r1, c1, r2, c2)) return;
 
+      sounds.playMove();
       setAnimating(true);
       setSelected(null);
 
