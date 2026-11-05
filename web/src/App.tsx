@@ -35,6 +35,7 @@ export default function App() {
   const start = useCallback(() => {
     setScore(0);
     scoreRef.current = 0;
+    setPaused(false);
     setGameKey((k) => k + 1);
     setPhase("playing");
   }, []);

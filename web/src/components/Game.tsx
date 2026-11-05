@@ -110,9 +110,11 @@ function GemShape({ type }: { type: GemType }) {
 
 export function Game({ onScore, onGameOver, paused }: GameProps) {
   const sounds = useGameSounds();
+  // Read sounds through a ref so callbacks see the current mute state.
+  const soundsRef = useRef(sounds);
+  soundsRef.current = sounds;
   const [board, setBoard] = useState<Board>(() => createBoard());
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
-  const [animating, setAnimating] = useState(false);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const scoreAccum = useRef(0);
   const onScoreRef = useRef(onScore);
@@ -121,6 +123,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
   onScoreRef.current = onScore;
   onGameOverRef.current = onGameOver;
   pausedRef.current = paused;
+  const locked = paused || timeLeft <= 0;
 
   const dragStartRef = useRef<{ row: number; col: number; x: number; y: number } | null>(null);
 
@@ -128,75 +131,44 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
   useEffect(() => {
     const interval = setInterval(() => {
       if (pausedRef.current) return;
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          sounds.playGameOver();
-          onGameOverRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const settle = useCallback((b: Board): { board: Board; points: number } => {
-    const result = processBoard(b);
-    for (let level = 1; level <= result.cascades; level++) {
-      if (level === 1) {
-        sounds.playScore();
-      } else {
-        sounds.playClear();
-      }
-    }
-    return result;
-  }, []);
+  useEffect(() => {
+    if (timeLeft > 0) return;
+    soundsRef.current.playGameOver();
+    onGameOverRef.current();
+  }, [timeLeft]);
 
-  /** Attempt a swap, process matches, or swap back if no match */
+  /** Attempt a swap and settle cascades; nothing happens if the swap makes no match */
   const trySwap = useCallback(
     (r1: number, c1: number, r2: number, c2: number) => {
-      if (animating) return;
-      if (!areAdjacent(r1, c1, r2, c2)) return;
+      if (locked || !areAdjacent(r1, c1, r2, c2)) return;
 
-      sounds.playMove();
-      setAnimating(true);
+      soundsRef.current.playMove();
       setSelected(null);
 
-      setBoard((prev) => {
-        const next = cloneBoard(prev);
-        swap(next, r1, c1, r2, c2);
+      const next = cloneBoard(board);
+      swap(next, r1, c1, r2, c2);
+      if (findMatches(next).positions.size === 0) return;
 
-        const { positions } = findMatches(next);
-        if (positions.size === 0) {
-          // No match — swap back
-          setTimeout(() => setAnimating(false), 0);
-          return prev;
-        }
+      const result = processBoard(next);
+      soundsRef.current.playScore();
+      for (let level = 2; level <= result.cascades; level++) soundsRef.current.playClear();
+      scoreAccum.current += result.points;
+      onScoreRef.current(scoreAccum.current);
 
-        // Process cascades
-        const result = settle(next);
-        scoreAccum.current += result.points;
-        onScoreRef.current(scoreAccum.current);
-
-        // Check for valid moves after settling
-        if (!hasValidMoves(result.board)) {
-          // Shuffle
-          const shuffled = createBoard();
-          setTimeout(() => setAnimating(false), 0);
-          return shuffled;
-        }
-
-        setTimeout(() => setAnimating(false), 0);
-        return result.board;
-      });
+      // Reshuffle when the settled board has no moves left
+      setBoard(hasValidMoves(result.board) ? result.board : createBoard());
     },
-    [animating, settle],
+    [board, locked],
   );
 
   const handleCellClick = useCallback(
     (row: number, col: number) => {
-      if (animating || timeLeft <= 0) return;
+      if (locked) return;
 
       if (selected) {
         if (selected.row === row && selected.col === col) {
@@ -210,20 +182,20 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
         setSelected({ row, col });
       }
     },
-    [selected, animating, trySwap, timeLeft],
+    [selected, locked, trySwap],
   );
 
   const handlePointerDown = useCallback(
     (row: number, col: number, e: React.PointerEvent) => {
-      if (animating || timeLeft <= 0) return;
+      if (locked) return;
       dragStartRef.current = { row, col, x: e.clientX, y: e.clientY };
     },
-    [animating, timeLeft],
+    [locked],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragStartRef.current || animating || timeLeft <= 0) return;
+      if (!dragStartRef.current || locked) return;
       const start = dragStartRef.current;
       dragStartRef.current = null;
 
@@ -249,7 +221,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
         trySwap(start.row, start.col, targetRow, targetCol);
       }
     },
-    [animating, trySwap, timeLeft],
+    [locked, trySwap],
   );
 
   const timerPercent = (timeLeft / GAME_DURATION) * 100;
@@ -316,7 +288,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
                   border: "none",
                   outline: isSelected ? "3px solid var(--ink)" : "2px solid rgba(255,255,255,0.2)",
                   outlineOffset: isSelected ? -1 : 0,
-                  cursor: animating || timeLeft <= 0 ? "default" : "pointer",
+                  cursor: locked ? "default" : "pointer",
                   transition: "transform 0.15s, outline 0.1s",
                   transform: isSelected ? "scale(1.1)" : "scale(1)",
                   boxShadow: isSelected
