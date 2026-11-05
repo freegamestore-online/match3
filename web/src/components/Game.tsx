@@ -126,6 +126,9 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
   const locked = paused || timeLeft <= 0;
 
   const dragStartRef = useRef<{ row: number; col: number; x: number; y: number } | null>(null);
+  // Set when a pointer drag passes the swipe threshold, so the click the browser fires
+  // when the drag ends on its starting gem is not also treated as a tap.
+  const draggedRef = useRef(false);
 
   // Timer
   useEffect(() => {
@@ -167,7 +170,12 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
   );
 
   const handleCellClick = useCallback(
-    (row: number, col: number) => {
+    (row: number, col: number, e: React.MouseEvent) => {
+      // A keyboard click (detail 0) never follows a drag.
+      if (draggedRef.current && e.detail !== 0) {
+        draggedRef.current = false;
+        return;
+      }
       if (locked) return;
 
       if (selected) {
@@ -189,6 +197,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
     (row: number, col: number, e: React.PointerEvent) => {
       if (locked) return;
       dragStartRef.current = { row, col, x: e.clientX, y: e.clientY };
+      draggedRef.current = false;
     },
     [locked],
   );
@@ -206,6 +215,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
 
       // Need minimum drag distance
       if (absDx < 15 && absDy < 15) return; // handled by click
+      draggedRef.current = true;
 
       let targetRow = start.row;
       let targetCol = start.col;
@@ -277,7 +287,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
             return (
               <button
                 key={cell.id}
-                onClick={() => handleCellClick(r, c)}
+                onClick={(e) => handleCellClick(r, c, e)}
                 onPointerDown={(e) => handlePointerDown(r, c, e)}
                 className="relative flex items-center justify-center rounded-lg"
                 style={{

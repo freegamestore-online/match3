@@ -51,6 +51,21 @@ describe("Game", () => {
     expect(onScore).not.toHaveBeenCalled();
   });
 
+  it("does not select a gem after a drag that ends back on it", () => {
+    render(<Game onScore={() => {}} onGameOver={() => {}} />);
+    // Drag left off the board edge from (0,0): past the threshold, but no swap target.
+    fireEvent.pointerDown(gem(0, 0), { clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(gem(0, 0), { clientX: 80, clientY: 100 });
+    fireEvent.click(gem(0, 0), { detail: 1 });
+    expect(gem(0, 0).style.transform).toBe("scale(1)");
+
+    // The next plain tap still selects.
+    fireEvent.pointerDown(gem(0, 0), { clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(gem(0, 0), { clientX: 102, clientY: 100 });
+    fireEvent.click(gem(0, 0), { detail: 1 });
+    expect(gem(0, 0).style.transform).toBe("scale(1.1)");
+  });
+
   it("calls onGameOver once when time runs out under StrictMode", () => {
     const onGameOver = vi.fn();
     render(
